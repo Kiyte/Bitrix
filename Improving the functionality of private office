@@ -1,0 +1,37 @@
+<?
+if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
+    die();
+
+if(CModule::IncludeModule("iblock") and CModule::IncludeModule("sale")):
+
+$arFilter = Array(
+    "USER_ID" => $arResult['ID']
+    );
+ $db_sales = CSaleOrder::GetList(array("DATE_INSERT" => "ASC"), $arFilter);
+ while ($ar_sales = $db_sales->Fetch())
+ {
+     $dbItemsInOrder = CSaleBasket::GetList(array("ID" => "ASC"), array("ORDER_ID" => $ar_sales['ID']));
+     $resProps = CSaleOrderPropsValue::GetOrderProps($ar_sales['ID']);
+     while ($arProp = $resProps->Fetch()) {      
+         if ($arProp['CODE'] == 'ID_IIKO') { 
+            $product[$ar_sales['ID']]['ID_IIKO'] = $arProp['VALUE'] ;
+            break;
+         }
+     }
+
+     $product[$ar_sales['ID']]['ORDER_ID'] = $ar_sales['ID'];
+     $product[$ar_sales['ID']]['DATE_ORDER'] = $ar_sales['DATE_INSERT'];
+     while ($com = $dbItemsInOrder->Fetch())
+     {
+        $product[$ar_sales['ID']]['FULL_PRICE'] = intval($product[$ar_sales['ID']]['FULL_PRICE']) + intval($com['PRICE']);
+        $arIBlockElement = GetIBlockElement($com['PRODUCT_ID']);
+        $com['PICTURE'] = CFile::GetPath($arIBlockElement['DETAIL_PICTURE']);
+        $com['DESCRIPTION'] = $arIBlockElement['PROPERTIES']['DESCRIPTION']['VALUE'];
+        $com['WEIGHT'] = $arIBlockElement['PROPERTIES']['WEIGHT']['VALUE'];
+        $product[$ar_sales['ID']]['PRODUCT'][] = $com;
+     }   
+ }
+ $arResult['ORDERS'] = $product;
+else:
+endif;
+?>
