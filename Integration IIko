@@ -1,0 +1,115 @@
+<?
+class iiko {
+    /**
+     * Receiving Token iiko
+     * @params $login - login user iiko
+     * @params $pass - password user iiko
+     * @return string
+     */
+    public function getToken($login,$pass){
+        if( $curlToken = curl_init() ) {
+            $url    = "https://iiko.biz:9900/api/0/auth/access_token?user_id=".$login."&user_secret=".$pass;
+            curl_setopt($curlToken, CURLOPT_URL, $url);
+            curl_setopt($curlToken, CURLOPT_RETURNTRANSFER,true);
+            $outToken = curl_exec($curlToken);
+            curl_close($curlToken);
+            $currentToke = str_replace("\"", "", $outToken);
+            return $currentToke;
+        }
+    }
+
+    /*
+     * Organization ID in iiko
+     * @return string
+     * @static
+     * */
+    public static function GetListOrganization($login,$pass)
+    {
+        $currentToken = iiko::getToken($login,$pass);
+        if( $curlGetList = curl_init() ) {
+            $token = str_replace("\"", "", $currentToken);
+            $url ="https://iiko.biz:9900/api/0/organization/list?access_token=".$token;
+            curl_setopt($curlGetList, CURLOPT_URL, $url);
+            curl_setopt($curlGetList, CURLOPT_RETURNTRANSFER,true);
+            $outGetList = curl_exec($curlGetList);
+            $decodeJson = json_decode($outGetList);
+            $idOrg = $decodeJson[0]->id;
+            return $idOrg;
+        }
+    }
+    /*
+     *
+     * Order JSON generation
+     *
+     * @return json
+     * @static
+     * */
+    public function genOrderJson($login,$pass,$arrFields){
+        $idOrg = iiko::GetListOrganization($login,$pass);
+        $value = $arrFields;
+        $arMassOrder['organization'] = $idOrg;
+        $arMassOrder['customer']['id']       = "";
+        $arMassOrder['customer']['name']     = $value['PAYER_NAME'];
+        $arMassOrder['customer']['phone']    = $value['ORDER_PROP'][2];
+        $arMassOrder['customer']['email']    = $value['ORDER_PROP'][6];
+        $arMassOrder['order']['id']          = "";
+        $arMassOrder['order']['date']        = date("Y-m-d H:i:s", strtotime($value['DATE_INSERT']));
+        $arMassOrder['order']['phone']       = $value['ORDER_PROP'][2];
+        $arMassOrder['order']['isSelfService'] = "true";
+        foreach ($value['BASKET_ITEMS'] as $item){
+            $arSelect = Array("ID", "NAME", "DATE_ACTIVE_FROM","PROPERTY_IIKO_ID");
+            $arFilter = Array("ID"=>IntVal($item['PRODUCT_ID']), "ACTIVE_DATE"=>"Y", "ACTIVE"=>"Y");
+            $res = CIBlockElement::GetList(Array(), $arFilter, false, Array("nPageSize"=>50), $arSelect);
+            while ($ar_res = $res->GetNextElement())
+            {
+                $arFields = $ar_res->GetFields();
+                $productIte['ID'] = $arFields['PROPERTY_IIKO_ID_VALUE'];
+                $productIte['amount'] = (int)$item['QUANTITY'];
+                $productItem[] = $productIte;
+            }
+        };
+        $arMassOrder['order']['items'] = $productItem;
+        return $arMassOrder;
+    }
+    /**
+     * Add order in iiko
+     * @return json
+     */
+    public function postNewOrder($token,$json){
+        if( $curlOrder = curl_init() ) {
+            $url ="https://iiko.biz:9900/api/0/orders/add?access_token=".$token;
+            curl_setopt($curlOrder, CURLOPT_URL, $url);
+            curl_setopt($curlOrder, CURLOPT_POST, true);
+            curl_setopt( $curlOrder,CURLOPT_HTTPHEADER, array(
+                'Content-Type: application/json'));
+            curl_setopt($curlOrder, CURLOPT_POSTFIELDS, $json);
+            curl_setopt($curlOrder, CURLOPT_RETURNTRANSFER,true);
+            curl_setopt($curlOrder, CURLOPT_FRESH_CONNECT, 1);
+            curl_setopt($curlOrder, CURLOPT_RETURNTRANSFER, 1);
+            $newOrder = curl_exec($curlOrder);
+            if (curl_errno($newOrder)):
+                echo 'Error:' . curl_error($newOrder);
+            else:
+                curl_close ($curlOrder);
+                return json_decode($newOrder);
+            endif;
+        }
+    }
+    /**
+     * Add order in iiko
+     * @return json
+     */
+    public function statusUpdateOrder($token,$org,$orderIikoId){
+        $currentTime  = date("H:i:s");
+        if( $curlGetList = curl_init() ) {
+            $url = "https://iiko.biz:9900/api/0/orders/info?access_token=" . $token . "&organization=" . $org . "&order=".$orderIikoId;
+            curl_setopt($curlGetList, CURLOPT_URL, $url);
+            curl_setopt($curlGetList, CURLOPT_RETURNTRANSFER, true);
+            $outdateOrder = curl_exec($curlGetList);
+            echo "<pre>";
+            print_r($outdateOrder);
+            echo "</pre>";
+        }
+    }
+}
+?>
