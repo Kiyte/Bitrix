@@ -1,0 +1,205 @@
+<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
+CModule::IncludeModule("iblock");?>
+<?
+/**
+* Generation of data for writing to information blocks
+**/
+
+$idGroup = 8;
+$idBlog = $DB->Query("SELECT BLOG_ID,ID FROM b_blog_post");
+while ($row = $idBlog->Fetch())
+{
+	$groupIdBlog = $DB->Query("SELECT GROUP_ID,NAME FROM b_blog WHERE ID = ".$row['BLOG_ID']);
+	while ($id = $groupIdBlog->Fetch())
+	{
+		if ($idGroup == $id['GROUP_ID'])
+		{
+			/**
+			 * Unload data comments
+			 */
+			
+			$postComment = $DB->Query("SELECT ID,AUTHOR_ID,TITLE,POST_ID,DATE_CREATE,POST_TEXT,PUBLISH_STATUS,AUTHOR_NAME,PARENT_ID FROM b_blog_comment WHERE POST_ID = ".$row['ID']);
+			while ($infoComment = $postComment->Fetch())
+			{
+				if ($infoComment['AUTHOR_ID'] != ""):
+					$userId = $DB->Query("SELECT USER_ID FROM b_blog_user WHERE ID =".$infoComment['AUTHOR_ID']);
+					while ( $idUser = $userId->Fetch()) {
+						$infoComment['AUTHOR_ID'] = $idUser['USER_ID'];
+					}
+				else:
+					$infoComment['AUTHOR_ID'] = "";
+				endif;
+				$commentInfo[] = $infoComment;
+			}
+			/**
+			 * end
+			 */
+			
+			$postBlog = $DB->Query("SELECT ID,AUTHOR_ID,TITLE,DATE_PUBLISH,PREVIEW_TEXT,PREVIEW_TEXT_TYPE,DETAIL_TEXT_TYPE,DETAIL_TEXT,ATRIBUTE FROM b_blog_post WHERE ID = ".$row['ID']);
+			while ($infoBlog = $postBlog->Fetch())
+			{
+				$infoBlog['ID_BLOG_POST'] = $infoBlog['ID'];				
+				$postSEO = $DB->Query("SELECT VALUE_ID,UF_BLOG_POST_CODE,UF_SEO_TITLE,UF_SEO_DESCRIPTION,UF_SEO_KEYWORDS,UF_ANONS,UF_FLAG,UF_AUTHOR FROM b_uts_blog_post WHERE VALUE_ID = ".$infoBlog['ID']);
+				while ($blogSEO = $postSEO->Fetch() ) {
+					$infoBlog['CODE'] 				= $blogSEO['UF_BLOG_POST_CODE'];
+					$infoBlog['SEO_TITLE']			= $blogSEO['UF_SEO_TITLE'];
+					$infoBlog['SEO_DESCRIPTION'] 	= $blogSEO['UF_SEO_DESCRIPTION'];
+					$infoBlog['SEO_KEYWORDS']		= $blogSEO['UF_SEO_KEYWORDS'];
+					$infoBlog['SOURCE']				= $blogSEO['UF_AUTHOR'];
+					$infoBlog['POST_PICTURE'][]		= CFile::MakeFileArray($blogSEO['UF_ANONS']);
+					$infoBlog['UF_FLAG']			= $blogSEO['UF_FLAG'];
+				}
+				$imgPost = $DB->Query("SELECT FILE_ID,TITLE FROM b_blog_image WHERE POST_ID = ".$infoBlog['ID']);
+				while ($imgBlog = $imgPost->Fetch()) {
+				if (empty($imgBlog['TITLE'])) {
+						$infoBlog['IMG'][]	= CFile::MakeFileArray($imgBlog['FILE_ID']);
+					}
+					else
+					{
+						$infoBlog['IMG_TITLE'][] = CFile::MakeFileArray($imgBlog['FILE_ID']);
+					}
+				}
+				if ($infoBlog['ATTRIBUTE']=="") {
+					$infoBlog['ATTRIBUTE'] = 0;
+				}
+				$infoBlog['GROUP_ID'] 	= $id['GROUP_ID'];
+
+				foreach ($sectionArray as $key => $value) {
+					if ($id['NAME'] == $value['NAME']) {
+						$infoBlog['SECTION_ID'] = $value['SECTION_ID'];
+					}
+				}
+
+					$infoBlog['THEME']	= $id['NAME'];
+					$res = CBlogImage::GetList(array("ID"=>"ASC"),array("POST_ID"=>$infoBlog['ID']));
+					while ($arImage = $res->Fetch())
+					{
+					    $arImages[$arImage['ID']] = $arImage['FILE_ID'];
+					}
+
+					$p = new blogTextParser();
+					$previewText = $p->convert(
+							 $infoBlog["DETAIL_TEXT"],
+							 $bPreview = true,
+							 $arImages ,
+							 $arAllow = array("HTML" =>   "Y",
+							                        "ANCHOR" => "Y",
+							                        "BIU" =>    "Y",
+							                        "IMG" =>    "Y",
+							                        "QUOTE" =>  "Y",
+							                        "CODE" =>   "Y",
+							                        "FONT" =>   "Y",
+							                        "LIST" =>   "Y",
+							                        "SMILES" => "Y",
+							                        "NL2BR" =>  "Y")
+							);
+					 		 $detailText = $p->convert(
+							 $infoBlog["DETAIL_TEXT"],
+							 $bPreview = false,
+							 $arImages ,
+							 $arAllow = array("HTML" =>   "Y",
+							                        "ANCHOR" => "Y",
+							                        "BIU" =>    "Y",
+							                        "IMG" =>    "Y",
+							                        "QUOTE" =>  "Y",
+							                        "CODE" =>   "Y",
+							                        "FONT" =>   "Y",
+							                        "LIST" =>   "Y",
+							                        "SMILES" => "Y",
+							                        "NL2BR" =>  "Y")
+							);
+					$infoBlog['PREVIEW_TEXT'] 	= $previewText;
+					$infoBlog['DETAIL_TEXT'] 	= $detailText;
+					$infoPost[] 				= $infoBlog;
+			}
+		}
+	}
+}
+?>
+<?
+/**
+* Adding comment information block element
+**/
+$i = 0;
+$arParams = array("replace_space"=>"-","replace_other"=>"-");
+foreach ($commentInfo as $key => $value) {
+	$el = new CIBlockElement;
+	$PROP = array();
+	$PROP[338] 	= $value['AUTHOR_ID'];
+	$PROP[339] 	= $value['POST_TEXT'];
+	$PROP[340] 	= $value['PUBLISH_STATUS'];
+	$PROP[341]	= $value['POST_ID'];
+	$PROP[344]  = $value['DATE_CREATE'];
+	$PROP[342] 	= $value['PARENT_ID'];
+	$PROP[349]	= $value['ID'];
+
+	$name = "Комментарий№".$i."(old)";
+	$transName = Cutil::translit($name,"ru",$arParams);
+
+	$arLoadProductArray = Array(
+	  "MODIFIED_BY"    		=> $USER->GetID(),
+	  "IBLOCK_SECTION_ID" 	=> false,
+	  "IBLOCK_ID"      		=> 52,
+	  "PROPERTY_VALUES"		=> $PROP,
+	  "CODE"				=> $transName,
+	  "NAME"           		=> $name,
+	  "ACTIVE"         		=> "Y");
+
+	if($PRODUCT_ID = $el->Add($arLoadProductArray)):
+	  	echo "<pre>";
+	  	print_r("New ID: ".$PRODUCT_ID);
+		  echo "</pre>" ;
+		  $i++;
+	else:
+		echo "<pre>";
+	  	print_r("Error: ".$el->LAST_ERROR);
+		  echo "</pre>" ;
+		  $i++;
+	endif;
+
+}
+?>
+
+<?
+/**
+* Adding post information block element
+**/
+	foreach ($infoPost as $value) {
+		$el = new CIBlockElement;
+		$PROP = array();
+		$PROP[329] 	= $value['AUTHOR_ID'];
+		$PROP[328] 	= $value['DATE_PUBLISH'];
+		$PROP[331] 	= "140";
+		if ($value['UF_FLAG'] == '1')
+		{
+			$PROP[337]	= "141";
+		}
+		$PROP[330]	= $value['ATRIBUTE'];
+		$PROP[332]	= $value['IMG'];
+		$PROP[333] 	= $value['ID_BLOG_POST'];
+		$PROP[335]  = $value['SOURCE'];
+		$PROP[345]	= $value['SEO_TITLE'];
+		$PROP[346]	= $value['SEO_DESCRIPTION'];
+		$PROP[347]	= $value['SEO_KEYWORDS']; 
+		$arLoadProductArray = Array(
+		  "MODIFIED_BY"    		=> $USER->GetID(),
+		  "IBLOCK_SECTION_ID" 	=> $value['SECTION_ID'],
+		  "IBLOCK_ID"      		=> 51,
+		  "PROPERTY_VALUES"		=> $PROP,
+		  "CODE"				=> $value['CODE'],
+		  "NAME"           		=> $value['TITLE'],
+		  "ACTIVE"         		=> "Y",
+		  "PREVIEW_PICTURE"		=> $value['POST_PICTURE'][0],
+		  "PREVIEW_TEXT_TYPE"	=> "html",
+		  "PREVIEW_TEXT"   		=> $value['PREVIEW_TEXT'],
+		  "DETAIL_TEXT_TYPE"	=> "html",
+		  "DETAIL_TEXT"    		=> $value['DETAIL_TEXT']
+		  );
+		if($PRODUCT_ID = $el->Add($arLoadProductArray)):
+		  	//echo "New ID: ".$PRODUCT_ID."<br>";
+		else:
+			echo "Error: ".$el->LAST_ERROR."<br>";
+		endif;
+	}
+?>
+<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/footer.php");?>
