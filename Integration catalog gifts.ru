@@ -175,9 +175,5 @@ foreach ($arraySec as $key => $value) {
             CPrice::Add($arFields);
         }
     }
-    /*echo "<pre>";
-    print_r ($value);
-    echo "</pre>";*/
-break;
 }
 ?>
