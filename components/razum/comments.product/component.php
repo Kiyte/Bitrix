@@ -54,10 +54,5 @@ unset($arResult['CHILD']);
 /* END */
 
 $arResult['FULL_SCORE'] = $stars;
-/*
-echo '<pre>';
-print_r($arResult['ITEMS']);
-echo '</pre>';
-*/
 $this->IncludeComponentTemplate(); 
 ?>
