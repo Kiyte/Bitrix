@@ -23,13 +23,12 @@ if ($_POST['AJAX_ENABLE'] == 'Y'){
     $arFields['id_product']     = $_POST['fields']['id_product'];
     $arFields['parent_comment'] = $_POST['fields']['parent_comment'];
     
-$hlbl = 3; // Указываем ID нашего highloadblock блока к которому будет делать запросы.
+$hlbl = 3;
 $hlblock = HL\HighloadBlockTable::getById($hlbl)->fetch(); 
 
 $entity = HL\HighloadBlockTable::compileEntity($hlblock); 
 $entity_data_class = $entity->getDataClass(); 
 
-   // Массив полей для добавления
    $data = array(
       'UF_NAME'=>$arFields['fio'],
       'UF_EMAIL'=>$arFields['email'],
@@ -42,11 +41,7 @@ $entity_data_class = $entity->getDataClass();
       "UF_ID_PARENT_COMMENT"=>intval($arFields['parent_comment']),
       "UF_ACTIVE"=>''
    );   
-   $result = $entity_data_class::add($data);
-   echo '<pre>';
-   var_dump($result);
-   echo '<pre>';
-   
+   $result = $entity_data_class::add($data);  
 } else {
     LocalRedirect('/');
 }
