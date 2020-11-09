@@ -14,7 +14,6 @@ if ($_POST['AJAX_ENABLE'] == 'Y'){
     Bitrix\Main\Loader::includeModule("sale");
     Bitrix\Main\Loader::includeModule("catalog");
 
-    // Допустим некоторые поля приходит в запросе
     $productId = intval($_POST["ID_PRODUCT"]);
     $phone     = intval($_POST["phone"]);
     $name      = $_POST["name"];
@@ -42,12 +41,10 @@ if ($_POST['AJAX_ENABLE'] == 'Y'){
         var_dump($newUser->LAST_ERROR);
     }
     
-    // Создаёт новый заказ
     $order = Order::create($siteId, $ID_USER);
     $order->setPersonTypeId(1);
     $order->setField('CURRENCY', $currencyCode);
 
-    // Создаём корзину с одним товаром
     $basket = Basket::create($siteId);
     $item = $basket->createItem('catalog', $productId);
     $item->setFields(array(
@@ -58,7 +55,6 @@ if ($_POST['AJAX_ENABLE'] == 'Y'){
     ));
     $order->setBasket($basket);
 
-    // Создаём одну отгрузку и устанавливаем способ доставки - "Без доставки" (он служебный)
     $shipmentCollection = $order->getShipmentCollection();
     $shipment = $shipmentCollection->createItem();
     $service = Delivery\Services\Manager::getById(Delivery\Services\EmptyDeliveryService::getEmptyDeliveryServiceId());
@@ -70,7 +66,6 @@ if ($_POST['AJAX_ENABLE'] == 'Y'){
     $shipmentItem = $shipmentItemCollection->createItem($item);
     $shipmentItem->setQuantity($item->getQuantity());
 
-    // Создаём оплату со способом #1
     $paymentCollection = $order->getPaymentCollection();
     $payment = $paymentCollection->createItem();
     $paySystemService = PaySystem\Manager::getObjectById(1);
@@ -82,13 +77,11 @@ if ($_POST['AJAX_ENABLE'] == 'Y'){
     $payment->setField("SUM", $order->getPrice());
     $payment->setField("CURRENCY", $order->getCurrency());
     
-    // Устанавливаем свойства
     $propertyCollection = $order->getPropertyCollection();
     
     $nameProp = $propertyCollection->getPayerName();
     $nameProp->setValue($name);
 
-    // Сохраняем
     $order->doFinalAction(true);
     $result = $order->save();
     $orderId = $order->getId();
