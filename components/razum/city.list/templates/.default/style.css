@@ -1,0 +1,18 @@
+.city-block{
+    display: flex;
+    margin: 3rem 0 3rem 0;
+}
+
+.delete-img{
+    width: 15px;
+    margin-left: 15px;
+}
+
+.img-block{
+    display: block;
+    cursor: pointer;
+}
+
+.button-add{
+    margin-top: 1rem;
+}
